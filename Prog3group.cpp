@@ -157,7 +157,8 @@ double* FIFO(int* pageRef){
 				}
 			}		
 		}
-		resultTable[i-1]=hitCount*1.0/10000*100;	
+		resultTable[i-1]=hitCount*1.0/10000*100;
+		cacheList.clear();	
 	}
 	return resultTable;
 }
@@ -197,6 +198,7 @@ double* Clock(int* pageRef){
 			}	
 		}
 		resultTable[i-1]=hitCount*1.0/10000*100;	
+		cacheList.clear();
 	}
 	return resultTable;
 }
@@ -226,6 +228,7 @@ double* Rand(int* pageRef){
 			}
 		}
 		resultTable[i-1]=hitCount*1.0/10000*100;
+		cacheList.clear();
 	}
 	return resultTable;
 } 
