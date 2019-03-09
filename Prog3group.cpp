@@ -16,7 +16,7 @@ struct CacheClk{
 
 struct CacheEntry {
 	int pageNum;
-	int clkBit;
+	int timeTag;
 };
 
 double* FIFO(int* a);
@@ -45,14 +45,13 @@ int main(int argc, char ** argv){
 	for(int i=8000;i<10000;i++){
 		eightyTotwenty[i]=rand()%(99-20+1)+20;
 	}
-	for(int i=0;i<10000;i++){
-		int index1=rand()%10000;
-		int index2=rand()%10000;
-		int temp;
-		temp=eightyTotwenty[index1];
-		eightyTotwenty[index1]=eightyTotwenty[index2];
-		eightyTotwenty[temp];
+	for(int i=0;i<pageAccess;i++){
+		int randomIndex=rand()%pageAccess;
+		int temp=eightyTotwenty[i];
+		eightyTotwenty[i]=eightyTotwenty[randomIndex];
+		eightyTotwenty[randomIndex]=temp;
 	}
+	
 	//for looping
 	for(int i=0;i<200;i++){
 		for(int j=0;j<50;j++){
@@ -88,7 +87,7 @@ int main(int argc, char ** argv){
 	cout<<endl;
 
 	result=optimal(noLocal);
-	cout<<"Optimal:	";
+	cout<<"Optimal:";
 	for(int i=0;i<20;i++){
 		cout<<result[i]<<"	";
 	}
@@ -127,7 +126,7 @@ int main(int argc, char ** argv){
 	cout<<endl;
 
 	result=optimal(eightyTotwenty);
-	cout<<"Optimal:	";
+	cout<<"Optimal:";
 	for(int i=0;i<20;i++){
 		cout<<result[i]<<"	";
 	}
@@ -166,7 +165,7 @@ int main(int argc, char ** argv){
 	cout<<endl;
 
 	result=optimal(looping);
-	cout<<"Optimal:	";
+	cout<<"Optimal:";
 	for(int i=0;i<20;i++){
 		cout<<result[i]<<"	";
 	}
@@ -284,142 +283,87 @@ double* Rand(int* pageRef){
 
 double * optimal( int * workload) {
 	double * returnTable = (double *) malloc(sizeof(double) * 20);
-	for (int h = 1; h < 21; h++) {
-		vector<int> queue;
-		int counter = 0;
-		int * resultTable = (int *) malloc(sizeof(int) * pageAccess);
-		for (int i = 0; i < pageAccess; i++) {
-			if (queue.size() < h * 5) {
-				int hitFlag = 0;
-				for (int j = 0; j < queue.size(); j++) {
-					if (workload[i] == queue[j]) {
-						hitFlag = 1;
-					}
-				}
-				if (hitFlag == 0) {
-					queue.push_back(workload[i]);
-					resultTable[i] = 0;
-				} else {
-					resultTable[i] = 1;
-				}
-				counter++;
-			}
-		}
-		for (int i = counter; i < pageAccess; i++) {
-			int hitFlag = 0;
-			for (int j = 0; j < queue.size(); j++) {
-				if (workload[i] == queue[j]) {
-					hitFlag = 1;
+	vector<int> cacheList;
+
+	for(int i=1;i<=20;i++){
+		int hitCount=0;
+		for(int j=0;j<pageAccess;j++){
+			int hitFlag=0;
+			for(int k=0;k<cacheList.size();k++){
+				if(workload[j]==cacheList[k]){
+					hitCount++;
+					hitFlag=1;
+					break;
 				}
 			}
-			if (hitFlag == 0) {
-				int * differenceTable = (int *) malloc(sizeof(int) * queue.size());
-				for (int d = 0; d < queue.size(); d++) {
-						differenceTable[d] = 100000;
+			if(hitFlag==0){
+				if(cacheList.size()<i*5){
+					cacheList.push_back(workload[j]);
 				}
-				for (int j = 0; j < queue.size(); j++) {
-					for (int k = i; k < pageAccess; k++) {
-						if (queue[j] == workload[k] && (k - i) < differenceTable[j]) {
-							differenceTable[j] = k - i;
+				else{
+					int largestIndex=0;
+					int pageout;
+					for(int h=0;h<cacheList.size();h++){
+						for(int g=j+1;g<pageAccess;g++){
+							if(cacheList[h]==workload[g]){
+								if(g>largestIndex){
+									largestIndex=g;
+									pageout=h;
+								}
+								break;
+							}
 						}
 					}
+					cacheList[pageout]=workload[j];
 				}
-				int largest = differenceTable[0];
-				int largestIndex = 0;
-				for (int d = 1; d < queue.size(); d++) {
-					if (differenceTable[d] > largest) {
-						largest = differenceTable[d];
-						largestIndex = d;
-					}
-				}
-				queue[largestIndex] = workload[i];
-				resultTable[i] = 0;
-			} else {
-				resultTable[i] = 1;
-			}
-
-		}
-		int hitCount = 0;
-		for (int i = 0; i < pageAccess; i++) {
-			if (resultTable[i] == 1) {
-				hitCount++;
 			}
 		}
-		int missCount = pageAccess - hitCount;
-		returnTable[h-1] = (double) (hitCount * 1.0)/pageAccess * 100.0;
+		returnTable[i-1]=hitCount*1.0/pageAccess*100;
+		cacheList.clear();
 	}
 	return returnTable;
 }
 
 double * leastRecentlyUsed (int * workload) {
 	double * returnTable = (double *) malloc(sizeof(double) * 20);
-	int * resultTable = (int *) malloc(sizeof(int) * pageAccess);
-	for (int h = 1; h < 21; h++) {
-		vector<CacheEntry> queue;
-		int counter = 0;
-		int * resultTable = (int *) malloc(sizeof(int) * pageAccess);
-		for (int i = 0; i < pageAccess; i++) {
-			if (queue.size() < h * 5) {
-				int hitFlag = 0;
-				for (int j = 0; j < queue.size(); j++) {
-					if (workload[i] == queue[j].pageNum) {
-						hitFlag = 1;
-					}
+	vector<CacheEntry> cacheList;
+
+	for(int i=1; i<=20; i++){
+		int hitCount=0;
+		for(int j=0;j<pageAccess;j++){
+			int hitFlag=0;
+			
+			for(int k=0;k<cacheList.size();k++){
+				if(workload[j]==cacheList[k].pageNum){
+					cacheList[k].timeTag=j;
+					hitCount++;
+					hitFlag=1;
+					break;
 				}
-				if (hitFlag == 0) {
+			}
+			if(hitFlag==0){
+				if(cacheList.size()<i*5){
 					CacheEntry c;
-					c.pageNum = workload[i];
-					c.clkBit = 1;
-					queue.push_back(c);
-					resultTable[i] = 0;
-				} else {
-					resultTable[i] = 1;
+					c.pageNum=workload[j];
+					c.timeTag=j;
+					cacheList.push_back(c);
 				}
-				counter++;
-			}
-		}
-		for (int i = counter; i < pageAccess; i++) {
-			int hitFlag = 0;
-			for (int j = 0; j < queue.size(); j++) {
-				if (workload[i] == queue[j].pageNum) {
-					hitFlag = 1;
-				}
-			}
-			if (hitFlag == 0) {
-				int * differenceTable = (int *) malloc(sizeof(int) * queue.size());
-				for (int d = 0; d < queue.size(); d++) {
-						differenceTable[d] = 100000;
-				}
-				for (int j = 0; j < queue.size(); j++) {
-					for (int k = 0; k < i; k++) {
-						if (queue[j].pageNum == workload[k] && (i - k) < differenceTable[j]) {
-							differenceTable[j] = i - k;
+				else{
+					int index=0;
+					for(int h=1;h<cacheList.size();h++){
+
+						if(cacheList[h].timeTag<cacheList[index].timeTag){
+							index=h;
 						}
 					}
+					
+					cacheList[index].pageNum=workload[j];
+					cacheList[index].timeTag=j;
 				}
-				int largest = differenceTable[0];
-				int largestIndex = 0;
-				for (int d = 1; d < queue.size(); d++) {
-					if (differenceTable[d] > largest) {
-						largest = differenceTable[d];
-						largestIndex = d;
-					}
-				}
-				queue[largestIndex].pageNum = workload[i];
-				resultTable[i] = 0;
-			} else {
-				resultTable[i] = 1;
-			}
-
-		}
-		int hitCount = 0;
-		for (int i = 0; i < pageAccess; i++) {
-			if (resultTable[i] == 1) {
-			hitCount++;
 			}
 		}
-		int missCount = pageAccess - hitCount;
-		returnTable[h-1] = (double) (hitCount * 1.0)/pageAccess * 100.0;
+		returnTable[i-1]=hitCount*1.0/pageAccess*100;
+		cacheList.clear();
 	}
 	return returnTable;
 }
